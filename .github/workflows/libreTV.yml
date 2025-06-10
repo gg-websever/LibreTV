@@ -1,0 +1,38 @@
+name: Upstream Sync
+
+permissions:
+  contents: write
+
+on:
+  schedule:
+    - cron: "0 4 * * *"  # 每天 UTC 4:00（北京时间中午 12:00）
+  workflow_dispatch:
+
+jobs:
+  sync_latest_from_upstream:
+    name: Sync latest commits from upstream repo
+    runs-on: ubuntu-latest
+    if: ${{ github.event.repository.fork }}
+
+    steps:
+      - name: Checkout target repo
+        uses: actions/checkout@v4
+
+      - name: Sync upstream changes
+        id: sync
+        uses: aormsby/Fork-Sync-With-Upstream-action@v3.4.1
+        with:
+          upstream_sync_repo: LibreSpark/LibreTV
+          upstream_sync_branch: main
+          target_sync_branch: main
+          target_repo_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sync success message
+        if: success() && steps.sync.outputs.has_new_commits == 'true'
+        run: echo "✅ 已同步最新 upstream 提交"
+
+      - name: Sync check
+        if: failure()
+        run: |
+          echo "::error::[Error] 由于上游 workflow 文件发生变更，GitHub 自动暂停了定时更新，请手动同步 fork。"
+          exit 1
